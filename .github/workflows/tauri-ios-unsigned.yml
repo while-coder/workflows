@@ -40,10 +40,18 @@ on:
         required: false
         type: string
         default: 10.33.0
+      runner:
+        required: false
+        type: string
+        default: macos-15
+      xcode-developer-dir:
+        required: false
+        type: string
+        default: /Applications/Xcode_16.3.app/Contents/Developer
 
 jobs:
   release-ios:
-    runs-on: macos-latest
+    runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v5
 
@@ -55,6 +63,15 @@ jobs:
         with:
           node-version: ${{ inputs.node-version }}
           cache: pnpm
+
+      - name: Select Xcode
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.xcode-developer-dir }}" ] && [ -d "${{ inputs.xcode-developer-dir }}" ]; then
+            export DEVELOPER_DIR="${{ inputs.xcode-developer-dir }}"
+            echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+          fi
+          xcodebuild -version
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
