@@ -1,0 +1,183 @@
+name: Tauri Android Release
+
+on:
+  workflow_call:
+    inputs:
+      project-path:
+        required: true
+        type: string
+      cargo-lock-path:
+        required: true
+        type: string
+      cargo-target-path:
+        required: true
+        type: string
+      cache-key-prefix:
+        required: false
+        type: string
+        default: android-cargo-app
+      tag-name:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      asset-prefix:
+        required: true
+        type: string
+      build-command:
+        required: true
+        type: string
+      init-command:
+        required: false
+        type: string
+        default: ''
+      node-version:
+        required: false
+        type: string
+        default: '24'
+      pnpm-version:
+        required: false
+        type: string
+        default: 10.33.0
+      android-api:
+        required: false
+        type: string
+        default: '36'
+      android-build-tools:
+        required: false
+        type: string
+        default: 36.0.0
+      android-ndk-version:
+        required: false
+        type: string
+        default: 27.0.11902837
+
+jobs:
+  check-signing:
+    runs-on: ubuntu-latest
+    outputs:
+      android_signed: ${{ steps.detect.outputs.android_signed }}
+    steps:
+      - id: detect
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] &&
+             [ -n "$ANDROID_KEYSTORE_PASSWORD" ] &&
+             [ -n "$ANDROID_KEY_ALIAS" ] &&
+             [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "android_signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "android_signed=false" >> "$GITHUB_OUTPUT"
+            if [ -n "$ANDROID_KEYSTORE_BASE64$ANDROID_KEYSTORE_PASSWORD$ANDROID_KEY_ALIAS$ANDROID_KEY_PASSWORD" ]; then
+              echo "::warning::Android signing secrets are incomplete; Android APK/AAB build will be skipped."
+            else
+              echo "::notice::Android signing secrets are not configured; Android APK/AAB build will be skipped."
+            fi
+          fi
+
+  release-android:
+    needs: check-signing
+    if: ${{ needs.check-signing.outputs.android_signed == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ inputs.pnpm-version }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools" "platforms;android-${{ inputs.android-api }}" "build-tools;${{ inputs.android-build-tools }}" "ndk;${{ inputs.android-ndk-version }}"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/${{ inputs.android-ndk-version }}" >> "$GITHUB_ENV"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+
+      - name: Cache cargo registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ inputs.cargo-target-path }}
+          key: ${{ inputs.cache-key-prefix }}-${{ hashFiles(inputs.cargo-lock-path) }}
+          restore-keys: |
+            ${{ inputs.cache-key-prefix }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Decode Android keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Init Android project
+        if: inputs.init-command != ''
+        working-directory: ${{ inputs.project-path }}
+        shell: bash
+        run: ${{ inputs.init-command }}
+
+      - name: Build Android APK and AAB
+        working-directory: ${{ inputs.project-path }}
+        shell: bash
+        env:
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            echo "::error::ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD, and ANDROID_KEYSTORE_PASSWORD secrets are required"
+            exit 1
+          fi
+          ${{ inputs.build-command }}
+
+      - name: Upload Android artifacts to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag-name }}
+          VERSION: ${{ inputs.version }}
+          ASSET_PREFIX: ${{ inputs.asset-prefix }}
+          PROJECT_PATH: ${{ inputs.project-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=$(find "$PROJECT_PATH/src-tauri/gen/android/app/build/outputs/apk" -name '*.apk' ! -name '*unsigned*' | head -n1)
+          AAB=$(find "$PROJECT_PATH/src-tauri/gen/android/app/build/outputs/bundle" -name '*.aab' ! -name '*unsigned*' | head -n1)
+          if [ -z "$APK" ]; then
+            echo "::error::Signed Android APK was not found."
+            exit 1
+          fi
+          if [ -z "$AAB" ]; then
+            echo "::error::Signed Android AAB was not found."
+            exit 1
+          fi
+          DEST_APK="${ASSET_PREFIX}_${VERSION}_android.apk"
+          DEST_AAB="${ASSET_PREFIX}_${VERSION}_android.aab"
+          cp "$APK" "$DEST_APK"
+          cp "$AAB" "$DEST_AAB"
+          gh release upload "$TAG" "$DEST_APK" "$DEST_AAB" -R "$GITHUB_REPOSITORY" --clobber
+

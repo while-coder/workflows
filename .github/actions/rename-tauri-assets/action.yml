@@ -1,0 +1,27 @@
+name: Rename Tauri assets
+description: Rename Tauri desktop release assets to include OS and architecture tags.
+inputs:
+  product-prefix:
+    description: Product prefix used in Tauri artifact names, for example sbot, STerm, or sbox.
+    required: true
+  version:
+    description: Release version.
+    required: true
+  tag:
+    description: Release tag.
+    required: true
+  repo:
+    description: GitHub repository in owner/name form.
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        INPUT_PRODUCT_PREFIX: ${{ inputs.product-prefix }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_TAG: ${{ inputs.tag }}
+        INPUT_REPO: ${{ inputs.repo }}
+      run: node "$GITHUB_ACTION_PATH/index.mjs"
+

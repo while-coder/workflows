@@ -1,0 +1,106 @@
+name: Tauri iOS Unsigned IPA
+
+on:
+  workflow_call:
+    inputs:
+      project-path:
+        required: true
+        type: string
+      cargo-lock-path:
+        required: true
+        type: string
+      cargo-target-path:
+        required: true
+        type: string
+      cache-key-prefix:
+        required: false
+        type: string
+        default: ios-cargo-app
+      tag-name:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      asset-prefix:
+        required: true
+        type: string
+      init-command:
+        required: false
+        type: string
+        default: ''
+      build-command:
+        required: true
+        type: string
+      node-version:
+        required: false
+        type: string
+        default: '24'
+      pnpm-version:
+        required: false
+        type: string
+        default: 10.33.0
+
+jobs:
+  release-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ inputs.pnpm-version }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Cache cargo registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ inputs.cargo-target-path }}
+          key: ${{ inputs.cache-key-prefix }}-${{ hashFiles(inputs.cargo-lock-path) }}
+          restore-keys: |
+            ${{ inputs.cache-key-prefix }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Init iOS project
+        if: inputs.init-command != ''
+        working-directory: ${{ inputs.project-path }}
+        shell: bash
+        run: ${{ inputs.init-command }}
+
+      - name: Build unsigned IPA
+        working-directory: ${{ inputs.project-path }}
+        shell: bash
+        run: ${{ inputs.build-command }}
+
+      - name: Upload unsigned IPA to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag-name }}
+          VERSION: ${{ inputs.version }}
+          ASSET_PREFIX: ${{ inputs.asset-prefix }}
+          PROJECT_PATH: ${{ inputs.project-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          IPA=$(find "$PROJECT_PATH/src-tauri/gen/apple" -name '*.ipa' -type f | head -n1)
+          if [ -z "$IPA" ]; then
+            echo "::error::Unsigned iOS IPA was not found."
+            find "$PROJECT_PATH/src-tauri/gen/apple" -maxdepth 5 \( -type f -o -type d \) || true
+            exit 1
+          fi
+          DEST="${ASSET_PREFIX}_${VERSION}_ios_unsigned.ipa"
+          cp "$IPA" "$DEST"
+          gh release upload "$TAG" "$DEST" -R "$GITHUB_REPOSITORY" --clobber

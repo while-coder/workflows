@@ -1,0 +1,40 @@
+name: Resolve release info
+description: Resolve tag, version, and release notes from package.json and CHANGELOG.md.
+inputs:
+  tag-prefix:
+    description: Prefix used by release tags, for example v or app-v.
+    required: false
+    default: v
+  package-json:
+    description: Path to the package.json that carries the release version.
+    required: false
+    default: package.json
+  changelog:
+    description: Path to CHANGELOG.md. The action reads the block under ## <version> when present.
+    required: false
+    default: CHANGELOG.md
+  verify-package-version:
+    description: Whether a tag version must match package.json version.
+    required: false
+    default: 'true'
+outputs:
+  tag:
+    description: Resolved release tag.
+    value: ${{ steps.resolve.outputs.tag }}
+  version:
+    description: Resolved release version.
+    value: ${{ steps.resolve.outputs.version }}
+  notes:
+    description: Resolved release notes.
+    value: ${{ steps.resolve.outputs.notes }}
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        INPUT_TAG_PREFIX: ${{ inputs.tag-prefix }}
+        INPUT_PACKAGE_JSON: ${{ inputs.package-json }}
+        INPUT_CHANGELOG: ${{ inputs.changelog }}
+        INPUT_VERIFY_PACKAGE_VERSION: ${{ inputs.verify-package-version }}
+      run: node "$GITHUB_ACTION_PATH/index.mjs"

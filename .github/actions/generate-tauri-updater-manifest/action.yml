@@ -1,0 +1,52 @@
+name: Generate Tauri updater manifest
+description: Generate and publish a Tauri updater manifest from renamed release assets.
+inputs:
+  product-prefix:
+    description: Product prefix used in release asset names.
+    required: true
+  version:
+    description: Release version.
+    required: true
+  tag:
+    description: Release tag containing updater payload assets.
+    required: true
+  notes:
+    description: Release notes to put into the updater manifest.
+    required: false
+    default: ''
+  output-name:
+    description: Manifest filename, for example latest.json or latest-app.json.
+    required: false
+    default: latest.json
+  repo:
+    description: GitHub repository in owner/name form.
+    required: false
+    default: ''
+  updater-release:
+    description: Fixed release tag that hosts updater manifests.
+    required: false
+    default: updater
+  updater-title:
+    description: Title to use if the updater release must be created.
+    required: false
+    default: Updater Manifests
+  cleanup-version-release-assets:
+    description: Comma-separated manifest asset names to delete from the versioned release after upload.
+    required: false
+    default: latest.json,latest-app.json
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        INPUT_PRODUCT_PREFIX: ${{ inputs.product-prefix }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_TAG: ${{ inputs.tag }}
+        INPUT_NOTES: ${{ inputs.notes }}
+        INPUT_OUTPUT_NAME: ${{ inputs.output-name }}
+        INPUT_REPO: ${{ inputs.repo }}
+        INPUT_UPDATER_RELEASE: ${{ inputs.updater-release }}
+        INPUT_UPDATER_TITLE: ${{ inputs.updater-title }}
+        INPUT_CLEANUP_VERSION_RELEASE_ASSETS: ${{ inputs.cleanup-version-release-assets }}
+      run: node "$GITHUB_ACTION_PATH/index.mjs"
+

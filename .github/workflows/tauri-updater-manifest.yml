@@ -1,0 +1,58 @@
+name: Tauri Updater Manifest
+
+on:
+  workflow_call:
+    inputs:
+      product-prefix:
+        required: true
+        type: string
+      tag-name:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      release-notes:
+        required: false
+        type: string
+        default: ''
+      output-name:
+        required: false
+        type: string
+        default: latest.json
+      updater-title:
+        required: false
+        type: string
+        default: Updater Manifests
+
+jobs:
+  publish-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Force release body from CHANGELOG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag-name }}
+          RELEASE_NOTES: ${{ inputs.release-notes }}
+        shell: bash
+        run: gh release edit "$TAG" -R "$REPO" --notes "$RELEASE_NOTES"
+
+      - uses: while-coder/workflows/.github/actions/rename-tauri-assets@main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          product-prefix: ${{ inputs.product-prefix }}
+          version: ${{ inputs.version }}
+          tag: ${{ inputs.tag-name }}
+
+      - uses: while-coder/workflows/.github/actions/generate-tauri-updater-manifest@main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          product-prefix: ${{ inputs.product-prefix }}
+          version: ${{ inputs.version }}
+          tag: ${{ inputs.tag-name }}
+          notes: ${{ inputs.release-notes }}
+          output-name: ${{ inputs.output-name }}
+          updater-title: ${{ inputs.updater-title }}
