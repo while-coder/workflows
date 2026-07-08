@@ -1,0 +1,75 @@
+name: Recreate GitHub Release
+description: Delete an existing GitHub Release for a tag, then optionally create a fresh release without deleting the tag.
+inputs:
+  github-token:
+    description: GitHub token with contents:write permission.
+    required: true
+  repo:
+    description: Repository in owner/name form. Defaults to the current repository.
+    required: false
+    default: ''
+  tag:
+    description: Release tag name.
+    required: true
+  target:
+    description: Target commitish for a newly created release. Defaults to GITHUB_SHA.
+    required: false
+    default: ''
+  title:
+    description: Release title. Defaults to the tag when create is true.
+    required: false
+    default: ''
+  notes:
+    description: Release notes used when create is true.
+    required: false
+    default: ''
+  create:
+    description: Whether to create a fresh release after deletion.
+    required: false
+    default: 'true'
+  draft:
+    description: Whether the newly created release should be a draft.
+    required: false
+    default: 'false'
+  prerelease:
+    description: Whether the newly created release should be marked as prerelease.
+    required: false
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        INPUT_REPO: ${{ inputs.repo }}
+        INPUT_TAG: ${{ inputs.tag }}
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_TITLE: ${{ inputs.title }}
+        INPUT_NOTES: ${{ inputs.notes }}
+        INPUT_CREATE: ${{ inputs.create }}
+        INPUT_DRAFT: ${{ inputs.draft }}
+        INPUT_PRERELEASE: ${{ inputs.prerelease }}
+      run: |
+        set -euo pipefail
+
+        repo="${INPUT_REPO:-$GITHUB_REPOSITORY}"
+        target="${INPUT_TARGET:-$GITHUB_SHA}"
+        title="${INPUT_TITLE:-$INPUT_TAG}"
+
+        if gh release view "$INPUT_TAG" -R "$repo" >/dev/null 2>&1; then
+          gh release delete "$INPUT_TAG" -R "$repo" --yes
+        fi
+
+        if [ "$INPUT_CREATE" != "true" ]; then
+          exit 0
+        fi
+
+        args=(release create "$INPUT_TAG" -R "$repo" --target "$target" --title "$title" --notes "$INPUT_NOTES")
+        if [ "$INPUT_DRAFT" = "true" ]; then
+          args+=(--draft)
+        fi
+        if [ "$INPUT_PRERELEASE" = "true" ]; then
+          args+=(--prerelease)
+        fi
+
+        gh "${args[@]}"
