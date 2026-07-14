@@ -25,6 +25,10 @@ on:
       asset-prefix:
         required: true
         type: string
+      release-repository:
+        required: false
+        type: string
+        default: ''
       build-command:
         required: true
         type: string
@@ -157,7 +161,8 @@ jobs:
 
       - name: Upload Android artifacts to release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          RELEASE_REPOSITORY: ${{ inputs.release-repository || github.repository }}
           TAG: ${{ inputs.tag-name }}
           VERSION: ${{ inputs.version }}
           ASSET_PREFIX: ${{ inputs.asset-prefix }}
@@ -179,5 +184,5 @@ jobs:
           DEST_AAB="${ASSET_PREFIX}_${VERSION}_android.aab"
           cp "$APK" "$DEST_APK"
           cp "$AAB" "$DEST_AAB"
-          gh release upload "$TAG" "$DEST_APK" "$DEST_AAB" -R "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$TAG" "$DEST_APK" "$DEST_AAB" -R "$RELEASE_REPOSITORY" --clobber
 

@@ -25,6 +25,10 @@ on:
       asset-prefix:
         required: true
         type: string
+      release-repository:
+        required: false
+        type: string
+        default: ''
       init-command:
         required: false
         type: string
@@ -104,7 +108,8 @@ jobs:
 
       - name: Upload unsigned IPA to release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          RELEASE_REPOSITORY: ${{ inputs.release-repository || github.repository }}
           TAG: ${{ inputs.tag-name }}
           VERSION: ${{ inputs.version }}
           ASSET_PREFIX: ${{ inputs.asset-prefix }}
@@ -120,4 +125,4 @@ jobs:
           fi
           DEST="${ASSET_PREFIX}_${VERSION}_ios_unsigned.ipa"
           cp "$IPA" "$DEST"
-          gh release upload "$TAG" "$DEST" -R "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$TAG" "$DEST" -R "$RELEASE_REPOSITORY" --clobber

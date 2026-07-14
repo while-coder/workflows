@@ -26,6 +26,14 @@ on:
         required: false
         type: string
         default: ''
+      release-owner:
+        required: false
+        type: string
+        default: ''
+      release-repo:
+        required: false
+        type: string
+        default: ''
       release-draft:
         required: false
         type: boolean
@@ -102,7 +110,7 @@ jobs:
 
       - uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
@@ -113,4 +121,6 @@ jobs:
           releaseDraft: ${{ inputs.release-draft }}
           prerelease: ${{ inputs.prerelease }}
           includeUpdaterJson: ${{ inputs.include-updater-json }}
+          owner: ${{ inputs.release-owner }}
+          repo: ${{ inputs.release-repo }}
           args: ${{ matrix.args }}

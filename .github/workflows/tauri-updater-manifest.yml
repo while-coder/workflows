@@ -16,6 +16,14 @@ on:
         required: false
         type: string
         default: ''
+      release-repository:
+        required: false
+        type: string
+        default: ''
+      release-target:
+        required: false
+        type: string
+        default: ''
       output-name:
         required: false
         type: string
@@ -31,8 +39,8 @@ jobs:
     steps:
       - name: Force release body from CHANGELOG
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          REPO: ${{ inputs.release-repository || github.repository }}
           TAG: ${{ inputs.tag-name }}
           RELEASE_NOTES: ${{ inputs.release-notes }}
         shell: bash
@@ -40,15 +48,16 @@ jobs:
 
       - uses: while-coder/workflows/.github/actions/rename-tauri-assets@main
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           product-prefix: ${{ inputs.product-prefix }}
           version: ${{ inputs.version }}
           tag: ${{ inputs.tag-name }}
+          repo: ${{ inputs.release-repository }}
 
       - uses: while-coder/workflows/.github/actions/generate-tauri-updater-manifest@main
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           product-prefix: ${{ inputs.product-prefix }}
           version: ${{ inputs.version }}
@@ -56,3 +65,5 @@ jobs:
           notes: ${{ inputs.release-notes }}
           output-name: ${{ inputs.output-name }}
           updater-title: ${{ inputs.updater-title }}
+          repo: ${{ inputs.release-repository }}
+          target: ${{ inputs.release-target }}

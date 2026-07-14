@@ -22,6 +22,10 @@ inputs:
     description: GitHub repository in owner/name form.
     required: false
     default: ''
+  target:
+    description: Target branch or commit used when the updater release must be created.
+    required: false
+    default: ''
   updater-release:
     description: Fixed release tag that hosts updater manifests.
     required: false
@@ -45,6 +49,7 @@ runs:
         INPUT_NOTES: ${{ inputs.notes }}
         INPUT_OUTPUT_NAME: ${{ inputs.output-name }}
         INPUT_REPO: ${{ inputs.repo }}
+        INPUT_TARGET: ${{ inputs.target }}
         INPUT_UPDATER_RELEASE: ${{ inputs.updater-release }}
         INPUT_UPDATER_TITLE: ${{ inputs.updater-title }}
         INPUT_CLEANUP_VERSION_RELEASE_ASSETS: ${{ inputs.cleanup-version-release-assets }}

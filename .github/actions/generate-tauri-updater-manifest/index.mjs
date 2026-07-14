@@ -7,6 +7,7 @@ const tag = process.env.INPUT_TAG;
 const notes = process.env.INPUT_NOTES || `Release ${version}`;
 const outputName = process.env.INPUT_OUTPUT_NAME || 'latest.json';
 const repo = process.env.INPUT_REPO || process.env.GITHUB_REPOSITORY;
+const target = process.env.INPUT_TARGET || process.env.GITHUB_SHA;
 const updaterRelease = process.env.INPUT_UPDATER_RELEASE || 'updater';
 const updaterTitle = process.env.INPUT_UPDATER_TITLE || 'Updater Manifests';
 const cleanupAssets = (process.env.INPUT_CLEANUP_VERSION_RELEASE_ASSETS || '')
@@ -93,7 +94,7 @@ try {
     'release', 'create', updaterRelease,
     '-R', repo,
     outputName,
-    '--target', process.env.GITHUB_SHA,
+    '--target', target,
     '--title', updaterTitle,
     '--notes', 'Auto-maintained by CI. Hosts Tauri updater manifests.',
     '--latest=false',
