@@ -32,6 +32,10 @@ on:
         required: false
         type: string
         default: Updater Manifests
+      source-product-name:
+        required: false
+        type: string
+        default: ''
 
 jobs:
   publish-manifest:
@@ -51,6 +55,7 @@ jobs:
           GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           product-prefix: ${{ inputs.product-prefix }}
+          source-product-name: ${{ inputs.source-product-name }}
           version: ${{ inputs.version }}
           tag: ${{ inputs.tag-name }}
           repo: ${{ inputs.release-repository }}

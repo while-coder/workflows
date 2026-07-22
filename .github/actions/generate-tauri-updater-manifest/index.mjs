@@ -38,36 +38,33 @@ function signatureFor(assetName) {
   ]).trim();
 }
 
-function add(keys, candidates) {
+function add(platform, candidates) {
   const asset = candidates.map((name) => assets.get(name)).find(Boolean);
   if (!asset) {
     missing.push(candidates.join(' or '));
     return;
   }
-  const entry = {
+  platforms[platform] = {
     signature: signatureFor(asset.name),
     url: asset.browser_download_url,
   };
-  for (const key of keys) {
-    platforms[key] = entry;
-  }
 }
 
-add(['darwin-x86_64', 'darwin-x86_64-app'], [
-  `${prefix}_${version}_macos_x64.app.tar.gz`,
+add('darwin-x86_64', [
+  `${prefix}_${version}_macos_universal.app.tar.gz`,
 ]);
-add(['darwin-aarch64', 'darwin-aarch64-app'], [
-  `${prefix}_${version}_macos_arm64.app.tar.gz`,
+add('darwin-aarch64', [
+  `${prefix}_${version}_macos_universal.app.tar.gz`,
 ]);
-add(['windows-x86_64', 'windows-x86_64-nsis'], [
+add('windows-x86_64', [
   `${prefix}_${version}_windows_x64.nsis.zip`,
   `${prefix}_${version}_windows_x64.exe`,
 ]);
-add(['windows-aarch64', 'windows-aarch64-nsis'], [
+add('windows-aarch64', [
   `${prefix}_${version}_windows_arm64.nsis.zip`,
   `${prefix}_${version}_windows_arm64.exe`,
 ]);
-add(['linux-x86_64', 'linux-x86_64-appimage'], [
+add('linux-x86_64', [
   `${prefix}_${version}_linux_x64.AppImage.tar.gz`,
   `${prefix}_${version}_linux_x64.AppImage`,
 ]);
@@ -86,10 +83,16 @@ fs.writeFileSync(
   }, null, 2)}\n`,
 );
 
+let updaterReleaseExists = true;
 try {
   gh(['release', 'view', updaterRelease, '-R', repo], { stdio: ['ignore', 'ignore', 'ignore'] });
-  gh(['release', 'upload', updaterRelease, outputName, '-R', repo, '--clobber']);
 } catch {
+  updaterReleaseExists = false;
+}
+
+if (updaterReleaseExists) {
+  gh(['release', 'upload', updaterRelease, outputName, '-R', repo, '--clobber']);
+} else {
   gh([
     'release', 'create', updaterRelease,
     '-R', repo,

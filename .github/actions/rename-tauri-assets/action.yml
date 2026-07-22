@@ -2,8 +2,12 @@ name: Rename Tauri assets
 description: Rename Tauri desktop release assets to include OS and architecture tags.
 inputs:
   product-prefix:
-    description: Product prefix used in Tauri artifact names, for example sbot, STerm, or sbox.
+    description: Public product prefix used for normalized release assets.
     required: true
+  source-product-name:
+    description: Tauri productName used by the original assets. Defaults to product-prefix.
+    required: false
+    default: ''
   version:
     description: Release version.
     required: true
@@ -20,6 +24,7 @@ runs:
     - shell: bash
       env:
         INPUT_PRODUCT_PREFIX: ${{ inputs.product-prefix }}
+        INPUT_SOURCE_PRODUCT_NAME: ${{ inputs.source-product-name }}
         INPUT_VERSION: ${{ inputs.version }}
         INPUT_TAG: ${{ inputs.tag }}
         INPUT_REPO: ${{ inputs.repo }}

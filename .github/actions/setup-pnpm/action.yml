@@ -1,0 +1,14 @@
+name: Setup Node and pnpm
+description: Set up the shared Node.js and pnpm toolchain for release jobs.
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v6
+      with:
+        version: 10.33.0
+
+    - uses: actions/setup-node@v5
+      with:
+        node-version: 24
+        cache: pnpm
+        registry-url: https://registry.npmjs.org

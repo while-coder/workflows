@@ -12,10 +12,6 @@ on:
       cargo-target-path:
         required: true
         type: string
-      cache-key-prefix:
-        required: false
-        type: string
-        default: ios-cargo-app
       tag-name:
         required: true
         type: string
@@ -36,43 +32,27 @@ on:
       build-command:
         required: true
         type: string
-      node-version:
-        required: false
-        type: string
-        default: '24'
-      pnpm-version:
-        required: false
-        type: string
-        default: 10.33.0
-      runner:
-        required: false
-        type: string
-        default: macos-15
-      xcode-developer-dir:
-        required: false
-        type: string
-        default: /Applications/Xcode_16.3.app/Contents/Developer
 
 jobs:
   release-ios:
-    runs-on: ${{ inputs.runner }}
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v6
         with:
-          version: ${{ inputs.pnpm-version }}
+          version: 10.33.0
 
       - uses: actions/setup-node@v5
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: 24
           cache: pnpm
 
       - name: Select Xcode
         shell: bash
         run: |
-          if [ -n "${{ inputs.xcode-developer-dir }}" ] && [ -d "${{ inputs.xcode-developer-dir }}" ]; then
-            export DEVELOPER_DIR="${{ inputs.xcode-developer-dir }}"
+          if [ -d "/Applications/Xcode_16.3.app/Contents/Developer" ]; then
+            export DEVELOPER_DIR="/Applications/Xcode_16.3.app/Contents/Developer"
             echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
           fi
           xcodebuild -version
@@ -89,9 +69,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ${{ inputs.cargo-target-path }}
-          key: ${{ inputs.cache-key-prefix }}-${{ hashFiles(inputs.cargo-lock-path) }}
+          key: ios-cargo-${{ hashFiles(inputs.cargo-lock-path) }}
           restore-keys: |
-            ${{ inputs.cache-key-prefix }}-
+            ios-cargo-
 
       - run: pnpm install --frozen-lockfile
 

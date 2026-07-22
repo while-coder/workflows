@@ -12,10 +12,6 @@ on:
       cargo-target-path:
         required: true
         type: string
-      cache-key-prefix:
-        required: false
-        type: string
-        default: cargo-app
       tag-name:
         required: true
         type: string
@@ -46,41 +42,38 @@ on:
         required: false
         type: boolean
         default: false
-      matrix-json:
-        required: false
-        type: string
-        default: >-
-          [{"platform":"macos-latest","args":"--target aarch64-apple-darwin","rust-target":"aarch64-apple-darwin"},{"platform":"macos-latest","args":"--target x86_64-apple-darwin","rust-target":"x86_64-apple-darwin"},{"platform":"ubuntu-22.04","args":"","rust-target":""},{"platform":"windows-latest","args":"","rust-target":""},{"platform":"windows-latest","args":"--target aarch64-pc-windows-msvc","rust-target":"aarch64-pc-windows-msvc"}]
-      linux-packages:
-        required: false
-        type: string
-        default: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      node-version:
-        required: false
-        type: string
-        default: '24'
-      pnpm-version:
-        required: false
-        type: string
-        default: 10.33.0
 
 jobs:
   release-desktop:
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.matrix-json) }}
+        include:
+          - platform: macos-26
+            args: --target universal-apple-darwin
+            rust-target: aarch64-apple-darwin,x86_64-apple-darwin
+            cache-key: universal-apple-darwin
+          - platform: ubuntu-24.04
+            args: ''
+            rust-target: ''
+          - platform: windows-latest
+            args: ''
+            rust-target: ''
+          - platform: windows-latest
+            args: --target aarch64-pc-windows-msvc
+            rust-target: aarch64-pc-windows-msvc
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v6
         with:
-          version: ${{ inputs.pnpm-version }}
+          version: 10.33.0
 
       - uses: actions/setup-node@v5
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: 24
           cache: pnpm
 
       - name: Install Rust
@@ -95,18 +88,29 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ${{ inputs.cargo-target-path }}
-          key: ${{ matrix.platform }}-${{ matrix.rust-target || 'default' }}-${{ inputs.cache-key-prefix }}-${{ hashFiles(inputs.cargo-lock-path) }}
+          key: ${{ matrix.platform }}-${{ matrix.cache-key || matrix.rust-target || 'default' }}-cargo-${{ hashFiles(inputs.cargo-lock-path) }}
           restore-keys: |
-            ${{ matrix.platform }}-${{ matrix.rust-target || 'default' }}-${{ inputs.cache-key-prefix }}-
-            ${{ matrix.platform }}-${{ inputs.cache-key-prefix }}-
+            ${{ matrix.platform }}-${{ matrix.cache-key || matrix.rust-target || 'default' }}-cargo-
+            ${{ matrix.platform }}-cargo-
 
       - name: Install Linux deps
         if: startsWith(matrix.platform, 'ubuntu-')
         run: |
           sudo apt-get update
-          sudo apt-get install -y ${{ inputs.linux-packages }}
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libpipewire-0.3-dev libgbm-dev patchelf
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Import macOS signing certificate
+        if: startsWith(matrix.platform, 'macos-')
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -f scripts/mac-import-signing-cert.sh ]; then
+            bash -- scripts/mac-import-signing-cert.sh
+          fi
 
       - uses: tauri-apps/tauri-action@v0
         env:

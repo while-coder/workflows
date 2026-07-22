@@ -10,8 +10,13 @@ Call composite actions with `uses: while-coder/workflows/.github/actions/<name>@
 
 - `resolve-release-info`: resolve tag, version, and release notes from `package.json` and `CHANGELOG.md`.
 - `recreate-github-release`: delete an existing GitHub Release for a tag, then optionally create a fresh release without deleting the tag.
+- `setup-pnpm`: set up the shared Node 24 and pnpm 10.33.0 release toolchain.
 - `rename-tauri-assets`: rename Tauri desktop release assets to consistent OS/architecture names.
 - `generate-tauri-updater-manifest`: generate and publish Tauri updater manifests.
+
+`tauri-desktop-release.yml` centrally defines the release toolchain and platforms: Node 24, pnpm 10.33.0, macOS 26 universal, Ubuntu 24.04 x64, Windows x64, and Windows ARM64. If a caller contains `scripts/mac-import-signing-cert.sh`, the macOS job runs it automatically before the Tauri build.
+
+Android and iOS toolchain versions are also fixed here instead of being overridden by callers. When the Tauri `productName` differs from the public asset prefix, pass `source-product-name` to `tauri-updater-manifest.yml`.
 
 ## Secrets
 

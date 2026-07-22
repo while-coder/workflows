@@ -12,10 +12,6 @@ on:
       cargo-target-path:
         required: true
         type: string
-      cache-key-prefix:
-        required: false
-        type: string
-        default: android-cargo-app
       tag-name:
         required: true
         type: string
@@ -36,26 +32,6 @@ on:
         required: false
         type: string
         default: ''
-      node-version:
-        required: false
-        type: string
-        default: '24'
-      pnpm-version:
-        required: false
-        type: string
-        default: 10.33.0
-      android-api:
-        required: false
-        type: string
-        default: '36'
-      android-build-tools:
-        required: false
-        type: string
-        default: 36.0.0
-      android-ndk-version:
-        required: false
-        type: string
-        default: 27.0.11902837
 
 jobs:
   check-signing:
@@ -94,11 +70,11 @@ jobs:
 
       - uses: pnpm/action-setup@v6
         with:
-          version: ${{ inputs.pnpm-version }}
+          version: 10.33.0
 
       - uses: actions/setup-node@v5
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: 24
           cache: pnpm
 
       - uses: actions/setup-java@v4
@@ -111,8 +87,8 @@ jobs:
 
       - name: Install Android SDK packages
         run: |
-          sdkmanager "platform-tools" "platforms;android-${{ inputs.android-api }}" "build-tools;${{ inputs.android-build-tools }}" "ndk;${{ inputs.android-ndk-version }}"
-          echo "NDK_HOME=$ANDROID_HOME/ndk/${{ inputs.android-ndk-version }}" >> "$GITHUB_ENV"
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.0.11902837"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.0.11902837" >> "$GITHUB_ENV"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -126,9 +102,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ${{ inputs.cargo-target-path }}
-          key: ${{ inputs.cache-key-prefix }}-${{ hashFiles(inputs.cargo-lock-path) }}
+          key: android-cargo-${{ hashFiles(inputs.cargo-lock-path) }}
           restore-keys: |
-            ${{ inputs.cache-key-prefix }}-
+            android-cargo-
 
       - run: pnpm install --frozen-lockfile
 
