@@ -93,6 +93,13 @@ jobs:
             ${{ matrix.platform }}-${{ matrix.cache-key || matrix.rust-target || 'default' }}-cargo-
             ${{ matrix.platform }}-cargo-
 
+      - name: Remove cached Tauri bundles
+        shell: bash
+        run: |
+          if [ -d "${{ inputs.cargo-target-path }}" ]; then
+            find "${{ inputs.cargo-target-path }}" -type d -name bundle -prune -exec rm -rf {} +
+          fi
+
       - name: Install Linux deps
         if: startsWith(matrix.platform, 'ubuntu-')
         run: |
