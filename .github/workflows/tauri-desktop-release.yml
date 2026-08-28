@@ -42,6 +42,12 @@ on:
         required: false
         type: boolean
         default: false
+      # 构建期注入到二进制的环境变量，多行 KEY=VALUE（调用方用 secrets 拼装）。
+      # 仅透传给构建步骤，值为空的行会被跳过；不使用该机制的项目无需配置。
+      build-env:
+        required: false
+        type: string
+        default: ''
 
 jobs:
   release-desktop:
@@ -118,6 +124,20 @@ jobs:
           if [ -f scripts/mac-import-signing-cert.sh ]; then
             bash -- scripts/mac-import-signing-cert.sh
           fi
+
+      - name: Apply build env
+        if: inputs.build-env != ''
+        shell: bash
+        env:
+          BUILD_ENV: ${{ inputs.build-env }}
+        run: |
+          printf '%s\n' "$BUILD_ENV" | while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            case "$line" in *=*) ;; *) continue ;; esac
+            # 值为空的变量跳过，避免覆盖构建环境里已有的有效值
+            [ -n "${line#*=}" ] || continue
+            echo "$line" >> "$GITHUB_ENV"
+          done
 
       - uses: tauri-apps/tauri-action@v0
         env:
