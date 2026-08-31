@@ -127,8 +127,9 @@ jobs:
             bash -- scripts/mac-import-signing-cert.sh
           fi
 
+      # 注意：if 条件里不能引用 secrets 上下文，GitHub 会直接报
+      # "Unrecognized named-value: 'secrets'"；脚本内部已跳过空值，无需前置判断
       - name: Apply build env
-        if: inputs.build-env != '' || secrets.BUILD_ENV_SECRETS != ''
         shell: bash
         env:
           BUILD_ENV: ${{ inputs.build-env }}
