@@ -42,7 +42,9 @@ on:
         required: false
         type: boolean
         default: false
-      # 构建期注入到二进制的环境变量，多行 KEY=VALUE（调用方用 secrets 拼装）。
+      # 构建期注入到二进制的环境变量，多行 KEY=VALUE（非敏感值可直接写）。
+      # 敏感值放调用方仓库的 BUILD_ENV_SECRETS secret（同为多行 KEY=VALUE），
+      # 调用方使用 secrets: inherit 即可自动透传，此处不声明任何 secrets 输入。
       # 仅透传给构建步骤，值为空的行会被跳过；不使用该机制的项目无需配置。
       build-env:
         required: false
@@ -126,12 +128,13 @@ jobs:
           fi
 
       - name: Apply build env
-        if: inputs.build-env != ''
+        if: inputs.build-env != '' || secrets.BUILD_ENV_SECRETS != ''
         shell: bash
         env:
           BUILD_ENV: ${{ inputs.build-env }}
+          BUILD_ENV_SECRETS: ${{ secrets.BUILD_ENV_SECRETS }}
         run: |
-          printf '%s\n' "$BUILD_ENV" | while IFS= read -r line; do
+          printf '%s\n%s\n' "$BUILD_ENV" "$BUILD_ENV_SECRETS" | while IFS= read -r line; do
             [ -z "$line" ] && continue
             case "$line" in *=*) ;; *) continue ;; esac
             # 值为空的变量跳过，避免覆盖构建环境里已有的有效值
