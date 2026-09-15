@@ -82,8 +82,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK licenses
+        # android-actions/setup-android@v3 内部更新时会查找已下架的 'tools' 包而失败；
+        # ubuntu-latest 预装完整 SDK，这里只需接受 license。
+        run: yes | sdkmanager --licenses > /dev/null
 
       - name: Install Android SDK packages
         run: |
