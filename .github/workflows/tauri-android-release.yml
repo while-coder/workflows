@@ -82,11 +82,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # ubuntu-24.04（ubuntu-latest）镜像已不再预装 Android SDK，必须先装
-      # commandline tools 才有 sdkmanager。旧的 'tools' 包问题只在预装旧 SDK
-      # 的 22.04 镜像上出现，24.04 的干净环境不受影响。
+      # Google 已停止提供弃用的 'tools' 包（android-actions/setup-android#537），
+      # action 默认的 packages 含 'tools' 会安装失败，这里只装 platform-tools。
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses > /dev/null
