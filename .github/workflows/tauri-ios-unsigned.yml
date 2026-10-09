@@ -73,7 +73,7 @@ jobs:
           restore-keys: |
             ios-cargo-
 
-      - run: pnpm install --frozen-lockfile
+      - uses: while-coder/workflows/.github/actions/install-pnpm-dependencies@main
 
       - name: Init iOS project
         if: inputs.init-command != ''

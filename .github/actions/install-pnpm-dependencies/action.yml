@@ -1,0 +1,21 @@
+name: Install pnpm dependencies
+description: Apply package.json ciDependencies overrides and install dependencies.
+runs:
+  using: composite
+  steps:
+    - name: Apply CI dependency overrides
+      id: overrides
+      shell: bash
+      env:
+        CI_DEPENDENCIES_ACTION_PATH: ${{ github.action_path }}
+      run: node "$CI_DEPENDENCIES_ACTION_PATH/apply-ci-dependencies.cjs"
+
+    - name: Update lockfile for CI overrides
+      if: steps.overrides.outputs.overrides-applied == 'true'
+      shell: bash
+      run: pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+

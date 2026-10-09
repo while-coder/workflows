@@ -114,7 +114,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libpipewire-0.3-dev libgbm-dev patchelf
 
-      - run: pnpm install --frozen-lockfile
+      - uses: while-coder/workflows/.github/actions/install-pnpm-dependencies@main
 
       - name: Import macOS signing certificate
         if: startsWith(matrix.platform, 'macos-')

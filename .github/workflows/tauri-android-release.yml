@@ -113,7 +113,7 @@ jobs:
           restore-keys: |
             android-cargo-
 
-      - run: pnpm install --frozen-lockfile
+      - uses: while-coder/workflows/.github/actions/install-pnpm-dependencies@main
 
       - name: Decode Android keystore
         env:
