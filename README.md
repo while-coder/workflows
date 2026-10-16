@@ -22,14 +22,26 @@ Android and iOS toolchain versions are also fixed here instead of being overridd
 
 Reusable workflow code lives here, but secrets are resolved from the caller repository when a project uses `secrets: inherit`.
 
-Set these as organization secrets, or repeat them as repository secrets in each app repository:
+Set one `BUILD_SIGNING_JSON` Actions secret in each caller repository (or use an organization secret):
 
-- `ANDROID_KEYSTORE_BASE64`
-- `ANDROID_KEYSTORE_PASSWORD`
-- `ANDROID_KEY_ALIAS`
-- `ANDROID_KEY_PASSWORD`
-- `TAURI_SIGNING_PRIVATE_KEY`
-- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+```json
+{
+  "ANDROID_KEYSTORE_BASE64": "base64-encoded existing release keystore",
+  "ANDROID_KEYSTORE_PASSWORD": "keystore password",
+  "ANDROID_KEY_ALIAS": "key alias",
+  "ANDROID_KEY_PASSWORD": "key password",
+  "TAURI_SIGNING_PRIVATE_KEY": "existing Tauri updater private key",
+  "TAURI_SIGNING_PRIVATE_KEY_PASSWORD": ""
+}
+```
+
+Keep `secrets: inherit` on the caller's Android and desktop workflow jobs; no other caller changes are needed. Store this JSON as a **Secret**, not a repository variable or a committed file. Use the existing keystore and private key so updates remain compatible with installed apps.
+
+Both workflows prefer each non-empty JSON field, then fall back to the same-named individual secret. Existing individual secrets continue to work without `BUILD_SIGNING_JSON`; fields unrelated to the target platform may be omitted. Android requires all four Android fields and skips its build if signing configuration is incomplete. The Tauri private-key password is optional for an unencrypted key.
+
+The JSON must be valid and smaller than GitHub's 48 KB per-secret limit. Escape embedded newlines as `\n`, quotes as `\"`, and backslashes as `\\` in JSON string values. Invalid JSON fails workflow evaluation. Signing fields are explicitly masked before use because automatic masking of fields inside a JSON secret is not guaranteed.
+
+GitHub does not allow reading saved secret values back. Keep your original values in a secure password manager when assembling or updating the JSON. Once migrated successfully, the corresponding individual secrets can be removed. Other secrets such as `PUBLIC_RELEASE_TOKEN`, `APPLE_CERTIFICATE`, and `BUILD_ENV_SECRETS` remain separate.
 
 Do not rely on secrets stored only in this `workflows` repository for caller repositories. GitHub does not expose the called workflow repository's secrets to callers.
 

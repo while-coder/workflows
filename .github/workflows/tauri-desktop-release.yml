@@ -143,11 +143,35 @@ jobs:
             echo "$line" >> "$GITHUB_ENV"
           done
 
+      - name: Mask JSON signing secrets
+        shell: bash
+        env:
+          BUILD_SIGNING_JSON: ${{ secrets.BUILD_SIGNING_JSON }}
+        run: |
+          node <<'NODE'
+          let config;
+          try {
+            config = JSON.parse(process.env.BUILD_SIGNING_JSON || '{}');
+          } catch {
+            throw new Error('BUILD_SIGNING_JSON must contain valid JSON');
+          }
+          if (!config || typeof config !== 'object' || Array.isArray(config)) {
+            throw new Error('BUILD_SIGNING_JSON must contain a JSON object');
+          }
+          for (const key of ["TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"]) {
+            const value = config[key];
+            if (value === undefined || value === '') continue;
+            if (typeof value !== 'string') throw new Error(`${key} must be a string`);
+            const escaped = value.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+            process.stdout.write(`::add-mask::${escaped}\n`);
+          }
+          NODE
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ fromJSON(secrets.BUILD_SIGNING_JSON || '{}').TAURI_SIGNING_PRIVATE_KEY || secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ fromJSON(secrets.BUILD_SIGNING_JSON || '{}').TAURI_SIGNING_PRIVATE_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: ${{ inputs.project-path }}
           tagName: ${{ inputs.tag-name }}
