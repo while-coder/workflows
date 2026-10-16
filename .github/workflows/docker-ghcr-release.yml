@@ -1,0 +1,105 @@
+name: Docker GHCR Release
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: Image name without the registry; defaults to the caller repository.
+        type: string
+        default: ''
+      version:
+        required: true
+        type: string
+      context:
+        type: string
+        default: .
+      dockerfile:
+        type: string
+        default: Dockerfile
+      setup-pnpm:
+        description: Set up the shared Node/pnpm toolchain and install dependencies.
+        type: boolean
+        default: false
+      build-command:
+        description: Optional command to prepare the Docker build context.
+        type: string
+        default: ''
+      release-tag:
+        description: When set, also upload a Docker archive to this existing release.
+        type: string
+        default: ''
+      archive-name:
+        type: string
+        default: docker-image.tar
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: while-coder/workflows/.github/actions/setup-pnpm@main
+        if: inputs.setup-pnpm
+
+      - uses: while-coder/workflows/.github/actions/install-pnpm-dependencies@main
+        if: inputs.setup-pnpm
+
+      - name: Prepare Docker build context
+        if: inputs.build-command != ''
+        run: ${{ inputs.build-command }}
+
+      - name: Resolve image name
+        id: image
+        env:
+          IMAGE_NAME: ${{ inputs.image-name || github.repository }}
+        run: echo "name=ghcr.io/${IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          VERSION: ${{ inputs.version }}
+          DOCKERFILE: ${{ inputs.dockerfile }}
+          BUILD_CONTEXT: ${{ inputs.context }}
+          SOURCE_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          docker build \
+            --tag "$IMAGE:$VERSION" \
+            --tag "$IMAGE:latest" \
+            --label "org.opencontainers.image.source=$SOURCE_URL" \
+            --file "$DOCKERFILE" \
+            "$BUILD_CONTEXT"
+
+      - name: Push Docker image
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          docker push "$IMAGE:$VERSION"
+          docker push "$IMAGE:latest"
+
+      - name: Save Docker image
+        if: inputs.release-tag != ''
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          VERSION: ${{ inputs.version }}
+          ARCHIVE: ${{ inputs.archive-name }}
+        run: docker save --output "$ARCHIVE" "$IMAGE:$VERSION" "$IMAGE:latest"
+
+      - name: Upload Docker image to release
+        if: inputs.release-tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.release-tag }}
+          ARCHIVE: ${{ inputs.archive-name }}
+        run: gh release upload "$TAG" "$ARCHIVE" --clobber

@@ -18,6 +18,46 @@ Call composite actions with `uses: while-coder/workflows/.github/actions/<name>@
 
 Android and iOS toolchain versions are also fixed here instead of being overridden by callers. When the Tauri `productName` differs from the public asset prefix, pass `source-product-name` to `tauri-updater-manifest.yml`.
 
+## Docker / GHCR
+
+`docker-ghcr-release.yml` builds an image in the caller repository and pushes version and `latest` tags to GHCR. The default image name is `ghcr.io/<caller-owner>/<caller-repository>`, normalized to lowercase. It uses the caller's `GITHUB_TOKEN`; no Docker Hub account or extra secret is needed.
+
+```yaml
+jobs:
+  docker:
+    permissions:
+      contents: write
+      packages: write
+    uses: while-coder/workflows/.github/workflows/docker-ghcr-release.yml@main
+    with:
+      version: '1.2.3'
+      context: apps/server/dist
+      dockerfile: apps/server/Dockerfile
+      setup-pnpm: true
+      build-command: pnpm build:server
+      release-tag: v1.2.3
+      archive-name: server.tar
+```
+
+Inputs:
+
+| Input | Default | Purpose |
+| --- | --- | --- |
+| `version` | Required | Image version tag, normally without the release's `v` prefix. |
+| `image-name` | Caller repository | Image path without `ghcr.io/`, for example `while-coder/my-server`. |
+| `context` | `.` | Docker build context relative to the caller repository root. |
+| `dockerfile` | `Dockerfile` | Dockerfile path relative to the caller repository root. |
+| `setup-pnpm` | `false` | Set up shared Node/pnpm versions and install dependencies. |
+| `build-command` | Empty | Command to run before building the image, from the repository root. |
+| `release-tag` | Empty | Upload a Docker archive to this existing caller-repository Release; omitted means no archive. |
+| `archive-name` | `docker-image.tar` | Archive filename; includes both version and `latest` tags. |
+
+For projects that only need `docker build`, omit `setup-pnpm` and `build-command`. If uploading an archive, make the caller job depend on its release-creation job. Allow `packages: write` and `contents: write` in the caller as shown above; a called workflow cannot raise the caller's token permissions.
+
+After the first publish, set the package visibility to **Public** in GitHub Packages to allow anonymous pulls. A public source repository does not automatically make a new container package public. Existing packages must grant the caller repository Actions write access. The workflow adds the OCI source label to associate the image with the caller repository.
+
+Publishing the finished image to GHCR does not change the registry used by the Dockerfile's `FROM` image. The workflow currently builds for the Ubuntu runner's native architecture (Linux amd64).
+
 ## Secrets
 
 Reusable workflow code lives here, but secrets are resolved from the caller repository when a project uses `secrets: inherit`.
