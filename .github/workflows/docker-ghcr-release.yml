@@ -28,9 +28,17 @@ on:
         description: When set, also upload a Docker archive to this existing release.
         type: string
         default: ''
+      release-repository:
+        description: Target repository for the archive; defaults to the caller repository.
+        type: string
+        default: ''
       archive-name:
         type: string
         default: docker-image.tar
+    secrets:
+      PUBLIC_RELEASE_TOKEN:
+        description: Token with release write access when uploading to another repository.
+        required: false
 
 jobs:
   publish:
@@ -98,8 +106,8 @@ jobs:
       - name: Upload Docker image to release
         if: inputs.release-tag != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ inputs.release-repository || github.repository }}
           TAG: ${{ inputs.release-tag }}
           ARCHIVE: ${{ inputs.archive-name }}
         run: gh release upload "$TAG" "$ARCHIVE" --clobber

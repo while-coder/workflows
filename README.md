@@ -49,10 +49,13 @@ Inputs:
 | `dockerfile` | `Dockerfile` | Dockerfile path relative to the caller repository root. |
 | `setup-pnpm` | `false` | Set up shared Node/pnpm versions and install dependencies. |
 | `build-command` | Empty | Command to run before building the image, from the repository root. |
-| `release-tag` | Empty | Upload a Docker archive to this existing caller-repository Release; omitted means no archive. |
+| `release-tag` | Empty | Upload a Docker archive to this existing Release; omitted means no archive. |
+| `release-repository` | Caller repository | Repository receiving the archive, for example `while-coder/public-releases`. |
 | `archive-name` | `docker-image.tar` | Archive filename; includes both version and `latest` tags. |
 
 For projects that only need `docker build`, omit `setup-pnpm` and `build-command`. If uploading an archive, make the caller job depend on its release-creation job. Allow `packages: write` and `contents: write` in the caller as shown above; a called workflow cannot raise the caller's token permissions.
+
+For cross-repository Release uploads, set `release-repository` and pass `secrets: { PUBLIC_RELEASE_TOKEN: "${{ secrets.PUBLIC_RELEASE_TOKEN }}" }` on the calling job (or use `secrets: inherit`). The token must have write access to Releases in the target repository. GHCR authentication continues to use the caller's `GITHUB_TOKEN`; this optional token is used only for the Release attachment.
 
 After the first publish, set the package visibility to **Public** in GitHub Packages to allow anonymous pulls. A public source repository does not automatically make a new container package public. Existing packages must grant the caller repository Actions write access. The workflow adds the OCI source label to associate the image with the caller repository.
 
